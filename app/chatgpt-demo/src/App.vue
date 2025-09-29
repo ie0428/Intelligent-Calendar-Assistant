@@ -54,8 +54,8 @@
             <el-button @click="showUserSessions" type="primary" size="small">
               查看所有会话
             </el-button>
-            <el-button @click="showAllConversations" type="info" size="small">
-              所有对话记录
+            <el-button @click="showDashboard" type="success" size="small">
+              数据仪表盘
             </el-button>
             <span class="welcome-text">欢迎, {{ currentUser.username }}</span>
             <el-button @click="handleLogout" type="danger" size="small">退出</el-button>
@@ -64,36 +64,60 @@
       </el-header>
 
       <el-main>
-        <el-row :gutter="20">
+        <!-- 冲突检测组件 -->
+        <ConflictDetection />
+        
+        <el-row :gutter="20" style="margin-top: 20px;">
           <el-col :span="16">
             <el-card>
               <template #header>
                 <div class="table-header">
                   <span>我的日程安排</span>
-                  <el-button @click="getBookings" type="primary" size="small" icon="Refresh">刷新</el-button>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <el-radio-group v-model="currentView" size="small">
+                      <el-radio-button label="calendar">日历视图</el-radio-button>
+                      <el-radio-button label="table">表格视图</el-radio-button>
+                    </el-radio-group>
+                    <el-button @click="getBookings" type="primary" size="small" icon="Refresh">刷新</el-button>
+                  </div>
                 </div>
               </template>
-              <el-table :data="tableData" stripe style="width: 100%" v-loading="loading">
-                <el-table-column prop="eventId" label="ID" width="80" />
-                <el-table-column prop="name" label="名称" />
-                <el-table-column prop="date" label="日期" width="120" />
-                <el-table-column prop="from" label="开始时间" width="100" />
-                <el-table-column prop="to" label="结束时间" width="100" />
-                <el-table-column prop="bookingStatus" label="状态" width="100">
-                  <template #default="scope">
-                    <el-tag :type="scope.row.bookingStatus === 'CONFIRMED' ? 'success' : 'danger'">
-                      {{ scope.row.bookingStatus === "CONFIRMED" ? "✅ 确认" : "❌ 取消" }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="bookingClass" label="类别" />
-                <el-table-column label="操作" fixed="right" width="180">
-                  <template #default="scope">
-                    <el-button size="small" type="primary" @click="editBooking(scope.row)">更改</el-button>
-                    <el-button size="small" type="danger" @click="cancelBooking(scope.row)">取消</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
+              
+              <!-- 日历视图 -->
+              <div v-if="currentView === 'calendar'">
+                <CalendarView 
+                  :events="tableData" 
+                  @edit="editBooking"
+                  @cancel="cancelBooking"
+                  v-loading="loading"
+                />
+              </div>
+              
+              <!-- 表格视图 -->
+              <div v-else>
+                <el-table :data="tableData" stripe style="width: 100%" v-loading="loading">
+                  <el-table-column prop="eventId" label="ID" width="80" />
+                  <el-table-column prop="title" label="会议主题" />
+                  <el-table-column prop="name" label="创建者" />
+                  <el-table-column prop="date" label="日期" width="120" />
+                  <el-table-column prop="from" label="开始时间" width="100" />
+                  <el-table-column prop="to" label="结束时间" width="100" />
+                  <el-table-column prop="bookingStatus" label="状态" width="100">
+                    <template #default="scope">
+                      <el-tag :type="scope.row.bookingStatus === 'CONFIRMED' ? 'success' : 'danger'">
+                        {{ scope.row.bookingStatus === "CONFIRMED" ? "✅ 确认" : "❌ 取消" }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="bookingClass" label="类别" />
+                  <el-table-column label="操作" fixed="right" width="180">
+                    <template #default="scope">
+                      <el-button size="small" type="primary" @click="editBooking(scope.row)">更改</el-button>
+                      <el-button size="small" type="danger" @click="cancelBooking(scope.row)">取消</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
             </el-card>
           </el-col>
 
@@ -102,9 +126,14 @@
               <template #header>
                 <div class="chat-header">
                   <span>智能对话助手</span>
-                  <el-button @click="loadHistory" type="primary" size="small">
-                    当前会话记录
-                  </el-button>
+                  <div style="display: flex; gap: 10px;">
+                    <el-button @click="createNewConversation" type="success" size="small">
+                      新建对话
+                    </el-button>
+                    <el-button @click="loadHistory" type="primary" size="small">
+                      当前会话记录
+                    </el-button>
+                  </div>
                 </div>
               </template>
               
@@ -179,10 +208,16 @@
     <el-dialog
         v-model="sessionsDialogVisible"
         title="我的所有会话"
-        width="50%"
+        width="70%"
     >
       <el-table :data="userSessions" stripe>
-        <el-table-column prop="sessionId" label="会话ID" />
+        <el-table-column prop="summary" label="会话内容总结" width="300" />
+        <el-table-column prop="conversationCount" label="对话数量" width="100" />
+        <el-table-column prop="lastActivityTime" label="最后活动时间" width="180">
+          <template #default="scope">
+            {{ formatTimestamp(scope.row.lastActivityTime) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="120">
           <template #default="scope">
             <el-button 
@@ -201,6 +236,24 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- Dashboard弹窗 -->
+    <el-dialog
+        v-model="dashboardVisible"
+        title="数据仪表盘"
+        width="90%"
+        :before-close="closeDashboard"
+    >
+      <Dashboard 
+        :events="tableData" 
+        @close="closeDashboard"
+      />
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="closeDashboard">关闭</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -209,11 +262,61 @@ import { MoreFilled } from "@element-plus/icons-vue";
 import { ref, onMounted, nextTick, watch, onUnmounted } from "vue";
 import axios from "axios";
 import { ElMessage, ElMessageBox } from "element-plus";
+import CalendarView from "./components/CalendarView.vue";
+import ConflictDetection from "./components/ConflictDetection.vue";
+import Dashboard from "./components/Dashboard.vue";
 
 export default {
   name: 'App',
+  components: {
+    CalendarView,
+    ConflictDetection,
+    Dashboard
+  },
   setup() {
-    // 认证相关状态
+    // 添加错误边界处理
+    const errorHandler = (error, instance, info) => {
+      console.error('组件错误捕获:', error);
+      console.error('错误实例:', instance);
+      console.error('错误信息:', info);
+      
+      // 如果是TypeError，显示友好的错误提示
+      if (error instanceof TypeError) {
+        ElMessage.error('发生了一个错误，请刷新页面重试');
+        console.error('类型错误详情:', error.message);
+      }
+    };
+
+    // 数据验证工具函数
+    const validateUserData = (data, source = 'unknown') => {
+      if (!data) {
+        console.warn(`[${source}] 用户数据为空`);
+        return false;
+      }
+      if (typeof data !== 'object') {
+        console.warn(`[${source}] 用户数据类型不正确:`, typeof data);
+        return false;
+      }
+      if (!data.id || !data.username) {
+        console.warn(`[${source}] 用户数据缺少必要字段:`, { id: !!data.id, username: !!data.username });
+        return false;
+      }
+      return true;
+    };
+
+    const validateSessionData = (data, source = 'unknown') => {
+      if (!data) {
+        console.warn(`[${source}] 会话数据为空`);
+        return false;
+      }
+      if (!Array.isArray(data)) {
+        console.warn(`[${source}] 会话数据不是数组:`, typeof data);
+        return false;
+      }
+      return true;
+    };
+
+    // 响应式数据
     const isLoggedIn = ref(false);
     const currentUser = ref({ id: 0, username: '', email: '' });
     const token = ref('');
@@ -242,7 +345,7 @@ export default {
     // 聊天相关状态
     const activities = ref([
       {
-        content: "⭐欢迎使用智能日程助手！请问有什么可以帮您的?",
+        content: "⭐欢迎使用ie智能日程助手！请问有什么可以帮您的?日程相关的问题，可以直接提问我哦~",
         timestamp: new Date().toLocaleString(),
         color: "#0bbd87",
       },
@@ -253,6 +356,12 @@ export default {
     let count = 2;
     let eventSource;
     const sessionId = ref("session-" + Date.now());
+    
+    // 视图切换状态
+    const currentView = ref('calendar'); // 'calendar' 或 'table'
+    
+    // Dashboard相关状态
+    const dashboardVisible = ref(false);
     
     // 历史记录相关
     const historyDialogVisible = ref(false);
@@ -274,6 +383,11 @@ export default {
         const response = await axios.post('/api/auth/signin', loginForm.value);
         const { token: authToken, id, username, email } = response.data;
         
+        // 添加调试信息
+        console.log('登录响应用户ID:', id);
+        console.log('登录响应用户名:', username);
+        console.log('登录响应邮箱:', email);
+        
         token.value = authToken;
         currentUser.value = { id, username, email };
         isLoggedIn.value = true;
@@ -281,8 +395,9 @@ export default {
         // 设置axios默认认证头
         axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
         
-        // 重新生成sessionId
-        sessionId.value = "session-" + Date.now();
+        // 使用用户ID作为sessionId的基础，确保同一用户始终使用相同的sessionId
+        sessionId.value = "user-" + id + "-session-" + Date.now();
+        localStorage.setItem('sessionId', sessionId.value);
         
         ElMessage.success('登录成功！');
         getBookings();
@@ -312,6 +427,11 @@ export default {
       currentUser.value = { id: 0, username: '', email: '' };
       token.value = '';
       delete axios.defaults.headers.common['Authorization'];
+
+      // 清理sessionId
+      sessionId.value = "session-" + Date.now();
+      localStorage.removeItem('sessionId');
+
       activities.value = [{
         content: "⭐欢迎使用智能日程助手！请问有什么可以帮您的?",
         timestamp: new Date().toLocaleString(),
@@ -343,8 +463,12 @@ export default {
         color: "#0bbd87",
       });
 
+      // 添加调试信息
+      console.log('发送消息时的用户ID:', currentUser.value.id);
+      console.log('发送消息时的用户名:', currentUser.value.username);
+      
       eventSource = new EventSource(
-          `${axios.defaults.baseURL}/ai/generateStreamAsString?message=${encodeURIComponent(msg.value)}&sessionId=${sessionId.value}`
+          `${axios.defaults.baseURL}/ai/generateStreamAsString?message=${encodeURIComponent(msg.value)}&sessionId=${sessionId.value}&userId=${currentUser.value.id}`
       );
       
       const currentCount = count;
@@ -376,7 +500,7 @@ export default {
 
     const scrollToBottom = () => {
       nextTick(() => {
-        if (messagesContainer.value) {
+        if (messagesContainer && messagesContainer.value) {
           messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
         }
       });
@@ -384,12 +508,26 @@ export default {
 
     // 日程管理方法
     const getBookings = async () => {
+      // 确保用户已登录
+      if (!isLoggedIn.value || !currentUser.value || !currentUser.value.id) {
+        console.warn('用户未登录或用户信息不完整，无法获取日程');
+        tableData.value = [];
+        return;
+      }
+      
       loading.value = true;
       try {
         const response = await axios.get('/booking/list');
-        tableData.value = response.data;
+        // 确保response.data存在且是数组
+        if (response && response.data && Array.isArray(response.data)) {
+          tableData.value = response.data;
+        } else {
+          console.warn('获取到的日程数据格式不正确:', response);
+          tableData.value = [];
+        }
       } catch (error) {
         console.error('获取日程失败:', error);
+        tableData.value = []; // 确保tableData始终是数组
         if (error.response?.status === 401) {
           ElMessage.error('认证已过期，请重新登录');
           handleLogout();
@@ -400,20 +538,20 @@ export default {
     };
 
     const editBooking = (booking) => {
-      ElMessage.info(`准备编辑日程: ${booking.name}`);
+      ElMessage.info(`准备编辑日程: ${booking.title || booking.name}`);
       // 这里可以打开编辑对话框
     };
 
     const cancelBooking = async (booking) => {
       try {
         await ElMessageBox.confirm(
-            `确定要取消日程 "${booking.name}" 吗?`,
+            `确定要取消日程 "${booking.title || booking.name}" 吗?`,
             '确认取消',
             { type: 'warning' }
         );
         
         // 这里调用AI功能来取消日程
-        msg.value = `请帮我取消日程：${booking.name}`;
+        msg.value = `请帮我取消日程：${booking.title || booking.name}`;
         sendMsg();
         
       } catch (error) {
@@ -424,8 +562,23 @@ export default {
     // 历史记录方法
     const loadHistory = async () => {
       try {
+        // 确保sessionId存在
+        if (!sessionId.value) {
+          console.warn('sessionId不存在，无法加载历史记录');
+          historyConversations.value = [];
+          historyDialogTitle.value = "当前会话记录";
+          historyDialogVisible.value = true;
+          return;
+        }
+        
         const response = await axios.get(`/api/conversations/session/${sessionId.value}`);
-        historyConversations.value = response.data;
+        // 确保response.data存在且是数组
+        if (response && response.data && Array.isArray(response.data)) {
+          historyConversations.value = response.data;
+        } else {
+          console.warn('获取到的对话数据格式不正确:', response);
+          historyConversations.value = [];
+        }
         historyDialogTitle.value = "当前会话记录";
         historyDialogVisible.value = true;
       } catch (error) {
@@ -437,19 +590,32 @@ export default {
 
     const showUserSessions = async () => {
       try {
-        const response = await axios.get(`/api/conversations/sessions/user/${currentUser.value.id}`);
-        userSessions.value = response.data.map(sessionId => ({ sessionId }));
+        const response = await axios.get(`/api/conversations/sessions/summaries/current`);
+        // 确保response.data存在且是数组
+        if (response && response.data && Array.isArray(response.data)) {
+          userSessions.value = response.data;
+        } else {
+          console.warn('获取到的会话数据格式不正确:', response);
+          userSessions.value = [];
+        }
         sessionsDialogVisible.value = true;
       } catch (error) {
         console.error('获取用户会话失败:', error);
+        userSessions.value = [];
         ElMessage.error('获取会话列表失败');
       }
     };
 
     const showAllConversations = async () => {
       try {
-        const response = await axios.get(`/api/conversations/user/${currentUser.value.id}`);
-        historyConversations.value = response.data;
+        const response = await axios.get(`/api/conversations/user/current`);
+        // 确保response.data存在且是数组
+        if (response && response.data && Array.isArray(response.data)) {
+          historyConversations.value = response.data;
+        } else {
+          console.warn('获取到的对话数据格式不正确:', response);
+          historyConversations.value = [];
+        }
         historyDialogTitle.value = "所有对话记录";
         historyDialogVisible.value = true;
       } catch (error) {
@@ -461,14 +627,64 @@ export default {
 
     const loadSessionConversations = async (targetSessionId) => {
       try {
+        // 验证targetSessionId
+        if (!targetSessionId || typeof targetSessionId !== 'string') {
+          console.warn('无效的会话ID:', targetSessionId);
+          ElMessage.error('无效的会话ID');
+          return;
+        }
+        
         const response = await axios.get(`/api/conversations/session/${targetSessionId}`);
-        historyConversations.value = response.data;
+        // 确保response.data存在且是数组
+        if (response && response.data && Array.isArray(response.data)) {
+          historyConversations.value = response.data;
+        } else {
+          console.warn('获取到的对话数据格式不正确:', response);
+          historyConversations.value = [];
+        }
         historyDialogTitle.value = `会话记录: ${targetSessionId}`;
         historyDialogVisible.value = true;
         sessionsDialogVisible.value = false;
       } catch (error) {
         console.error('获取指定会话记录失败:', error);
         ElMessage.error('获取会话记录失败');
+      }
+    };
+
+    const createNewConversation = async () => {
+      try {
+        // 确认用户是否要开始新对话
+        await ElMessageBox.confirm(
+          '确定要开始新的对话吗？当前对话记录将被保存，但会开启一个新的对话会话。',
+          '新建对话',
+          { type: 'warning' }
+        );
+        
+        // 调用后端API创建新对话
+        const response = await axios.post('/api/conversations/new');
+        const newSessionId = response.data;
+        
+        // 更新当前sessionId
+        sessionId.value = newSessionId;
+        
+        // 清空当前对话记录
+        activities.value = [{
+          content: "⭐欢迎使用智能日程助手！请问有什么可以帮您的?",
+          timestamp: new Date().toLocaleString(),
+          color: "#0bbd87",
+        }];
+        
+        // 重置消息计数
+        count = 2;
+        
+        ElMessage.success('已创建新对话会话');
+        console.log('新对话会话ID:', newSessionId);
+        
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('创建新对话失败:', error);
+          ElMessage.error('创建新对话失败');
+        }
       }
     };
 
@@ -481,33 +697,144 @@ export default {
       return new Date(timestamp).toLocaleString();
     };
 
+    // Dashboard相关方法
+    const showDashboard = () => {
+      dashboardVisible.value = true;
+    };
+
+    const closeDashboard = () => {
+      dashboardVisible.value = false;
+    };
+
     onMounted(() => {
+      let integrityCheck; // 提前声明变量
+      console.log('应用启动，开始数据完整性检查...');
+      
+      // 初始化时确保所有响应式数据都有默认值
+      if (!currentUser.value) {
+        currentUser.value = { id: 0, username: '', email: '' };
+      }
+      
       // 检查本地存储的token
       const savedToken = localStorage.getItem('authToken');
       const savedUser = localStorage.getItem('currentUser');
+      const savedSessionId = localStorage.getItem('sessionId');
+      
+      console.log('尝试从localStorage恢复数据:', {
+        hasToken: !!savedToken,
+        hasUser: !!savedUser,
+        hasSessionId: !!savedSessionId
+      });
+      
+      // 定期检查数据完整性
+      integrityCheck = setInterval(() => {
+        try {
+          // 检查用户数据完整性
+          if (isLoggedIn.value && (!currentUser.value || !currentUser.value.id)) {
+            console.warn('检测到用户数据不完整，尝试重新初始化');
+            handleLogout();
+          }
+          
+          // 检查localStorage数据完整性
+          const token = localStorage.getItem('authToken');
+          const user = localStorage.getItem('currentUser');
+          
+          if (token && !user) {
+            console.warn('检测到localStorage数据不一致：有token但没有用户信息');
+          }
+        } catch (error) {
+          console.error('数据完整性检查失败:', error);
+        }
+      }, 30000); // 每30秒检查一次
+      
+      // 在组件卸载时清理定时器
+      onUnmounted(() => {
+        clearInterval(integrityCheck);
+      });
       
       if (savedToken && savedUser) {
-        token.value = savedToken;
-        currentUser.value = JSON.parse(savedUser);
-        isLoggedIn.value = true;
-        axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-        getBookings();
+        try {
+          token.value = savedToken;
+          const parsedUser = JSON.parse(savedUser);
+          
+          // 验证解析后的用户对象是否有效
+          if (parsedUser && parsedUser.id && parsedUser.username) {
+            currentUser.value = parsedUser;
+            
+            // 添加调试信息 - 确保currentUser.value存在
+        if (currentUser.value && currentUser.value.id) {
+          console.log('从localStorage恢复的用户ID:', currentUser.value.id);
+          console.log('从localStorage恢复的用户名:', currentUser.value.username);
+        }
+            
+            isLoggedIn.value = true;
+            axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+            
+            // 如果存在保存的sessionId，则使用它，否则生成新的
+            if (savedSessionId) {
+              sessionId.value = savedSessionId;
+              if (savedSessionId) {
+          console.log('恢复之前的会话: ' + savedSessionId);
+        }
+            } else {
+              sessionId.value = "user-" + currentUser.value.id + "-session-" + Date.now();
+              localStorage.setItem('sessionId', sessionId.value);
+            }
+            
+            getBookings();
+          } else {
+            console.warn('localStorage中的用户信息格式不正确，清理数据');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('sessionId');
+          }
+        } catch (error) {
+          console.error('解析localStorage用户数据失败:', error);
+          // 清理损坏的数据
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('sessionId');
+        }
       }
     });
 
     // 监听登录状态变化，保存到本地存储
     const unwatch = watch(isLoggedIn, (newVal) => {
       if (newVal) {
-        localStorage.setItem('authToken', token.value);
-        localStorage.setItem('currentUser', JSON.stringify(currentUser.value));
+        // 确保currentUser.value存在且有有效属性
+        if (currentUser.value && currentUser.value.id && currentUser.value.username) {
+          localStorage.setItem('authToken', token.value);
+          localStorage.setItem('currentUser', JSON.stringify(currentUser.value));
+          localStorage.setItem('sessionId', sessionId.value);
+          
+          // 添加调试信息 - 确保currentUser.value存在
+        if (currentUser.value && currentUser.value.id) {
+          console.log('保存到localStorage的用户ID:', currentUser.value.id);
+        }
+        } else {
+          console.warn('用户信息不完整，不保存到localStorage');
+        }
       } else {
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('sessionId');
+      }
+    });
+
+    // 监听sessionId变化，保存到本地存储
+    const unwatchSession = watch(sessionId, (newVal) => {
+      if (isLoggedIn.value && newVal && currentUser.value && currentUser.value.id) {
+        localStorage.setItem('sessionId', newVal);
+        // 添加调试信息
+        if (newVal) {
+            console.log('保存到localStorage的sessionId:', newVal);
+          }
       }
     });
 
     onUnmounted(() => {
       unwatch();
+      unwatchSession();
       if (eventSource) {
         eventSource.close();
       }
@@ -538,6 +865,14 @@ export default {
       editBooking,
       cancelBooking,
       
+      // 视图切换
+      currentView,
+      
+      // Dashboard相关
+      dashboardVisible,
+      showDashboard,
+      closeDashboard,
+      
       // 历史记录相关
       historyDialogVisible,
       historyDialogTitle,
@@ -549,11 +884,19 @@ export default {
       showUserSessions,
       showAllConversations,
       loadSessionConversations,
+      createNewConversation,
       handleHistoryDialogClose,
       formatTimestamp,
       
       // 工具
-      MoreFilled
+      MoreFilled,
+      
+      // 错误处理
+      errorHandler,
+      
+      // 数据验证
+      validateUserData,
+      validateSessionData
     };
   },
 };
@@ -593,7 +936,7 @@ export default {
 }
 
 .app-header {
-  background: linear-gradient(90deg, #409EFF 0%, #67C23A 100%);
+  background: linear-gradient(90deg, #6477f0 0%, #dbacf3 100%);
   color: white;
   padding: 0 20px;
 }
@@ -661,7 +1004,7 @@ export default {
 }
 
 :deep(.el-timeline-item__node) {
-  background-color: #409EFF;
+  background-color: #83bcf6;
 }
 
 :deep(.el-timeline-item__timestamp) {

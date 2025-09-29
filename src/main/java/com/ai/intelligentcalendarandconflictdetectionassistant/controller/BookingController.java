@@ -3,6 +3,7 @@ package com.ai.intelligentcalendarandconflictdetectionassistant.controller;
 
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.BookingTools.BookingDetails;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.FlightBookingService;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -24,15 +25,20 @@ public class BookingController {
 	@CrossOrigin
 	@GetMapping(value = "/booking/list")
 	public List<BookingDetails> getBookings() {
-		String username = getCurrentUsername();
-		return flightBookingService.getBookingsByUsername(username);
+		Long userId = getCurrentUserId();
+		return flightBookingService.getBookingsByUserId(userId);
 	}
 
-	// 获取当前登录用户的用户名
-	private String getCurrentUsername() {
+	/**
+	 * 获取当前登录用户的ID
+	 * @return 当前用户ID
+	 * @throws SecurityException 如果用户未认证
+	 */
+	private Long getCurrentUserId() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication != null && authentication.isAuthenticated()) {
-			return authentication.getName();
+		if (authentication != null && authentication.isAuthenticated() && authentication.getPrincipal() instanceof UserDetailsImpl) {
+			UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+			return userDetails.getId();
 		}
 		throw new SecurityException("用户未认证");
 	}

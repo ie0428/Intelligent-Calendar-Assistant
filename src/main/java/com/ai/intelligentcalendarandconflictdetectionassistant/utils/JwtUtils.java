@@ -23,11 +23,16 @@ public class JwtUtils {
     @Value("${app.jwt.expiration.ms}")
     private int jwtExpirationMs;
 
+    @Value("${app.jwt.clock.skew.ms:0}")
+    private int clockSkewMs;
+
+    
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
 
         return Jwts.builder()
                 .setSubject((userPrincipal.getUsername()))
+                .claim("id", userPrincipal.getId())      // 添加用户ID声明
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)
@@ -38,6 +43,7 @@ public class JwtUtils {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
 
+    
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key())
@@ -47,8 +53,10 @@ public class JwtUtils {
                 .getSubject();
     }
 
+    
     public boolean validateJwtToken(String authToken) {
         try {
+            // 创建JWT解析器
             Jwts.parserBuilder()
                     .setSigningKey(key())
                     .build()
@@ -57,6 +65,16 @@ public class JwtUtils {
         } catch (MalformedJwtException e) {
             logger.error("Invalid JWT token: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
+            // 检查是否在允许的时钟偏移范围内
+            long currentTimeMillis = System.currentTimeMillis();
+            long expirationTimeMillis = e.getClaims().getExpiration().getTime();
+            long timeDifference = expirationTimeMillis - currentTimeMillis;
+            
+            if (timeDifference <= clockSkewMs) {
+                logger.warn("JWT token is expired but within allowed clock skew: {}ms, difference: {}ms", clockSkewMs, timeDifference);
+                return true; // 允许在时钟偏移范围内的过期令牌
+            }
+            
             logger.error("JWT token is expired: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
             logger.error("JWT token is unsupported: {}", e.getMessage());

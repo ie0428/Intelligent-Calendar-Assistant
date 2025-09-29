@@ -34,7 +34,7 @@ public class CalendarEvent {
     }
 
     public enum Status {
-        CONFIRMED, TENTATIVE, CANCELLED
+        NOT_STARTED, IN_PROGRESS, COMPLETED, CANCELLED
     }
 
     public enum Visibility {
