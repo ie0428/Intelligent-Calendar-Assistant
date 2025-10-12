@@ -3,10 +3,10 @@ package com.ai.intelligentcalendarandconflictdetectionassistant.controller;
 
 import com.ai.intelligentcalendarandconflictdetectionassistant.mapper.UserMapper;
 import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.User;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.JwtResponse;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.MessageResponse;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.LoginRequest;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.SignupRequest;
+import com.ai.intelligentcalendarandconflictdetectionassistant.response.JwtResponse;
+import com.ai.intelligentcalendarandconflictdetectionassistant.response.MessageResponse;
+import com.ai.intelligentcalendarandconflictdetectionassistant.request.LoginRequest;
+import com.ai.intelligentcalendarandconflictdetectionassistant.request.SignupRequest;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.utils.JwtUtils;
 import jakarta.validation.Valid;

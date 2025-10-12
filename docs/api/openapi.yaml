@@ -1,0 +1,1247 @@
+openapi: 3.0.3
+info:
+  title: 智能日程管理助手 API
+  description: |
+    智能日程管理助手是一个后端系统，旨在解决个人和团队在日程管理中手动输入效率低下、容易遗忘且频繁发生时间冲突的问题。
+    该系统能够理解自然语言输入、自动同步至第三方日历平台、并提供智能冲突检测与安排建议。
+    
+    主要功能包括：
+    - 用户认证与授权管理
+    - 智能日程管理（创建、查询、修改、删除）
+    - 自然语言AI对话交互
+    - 智能冲突检测与时间建议
+    - 文档知识库（RAG）管理
+    - 多会话对话管理
+    
+    所有API请求都需要在Header中携带Bearer Token进行认证。
+  version: 1.0.0
+  contact:
+    name: 智能日程管理助手开发团队
+    email: support@intelligent-calendar.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:8080
+    description: 本地开发服务器
+  - url: https://api.intelligent-calendar.com
+    description: 生产环境服务器
+paths:
+  /api/auth/signin:
+    post:
+      summary: 用户登录
+      description: 用户登录获取访问令牌
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwtResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /api/auth/signup:
+    post:
+      summary: 用户注册
+      description: 新用户注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+  /booking/list:
+    get:
+      summary: 获取用户日程列表
+      description: 获取当前登录用户的所有日程
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingDetails'
+  /api/documents/embedding:
+    post:
+      summary: 文档向量化嵌入
+      description: 将文档内容转换为向量表示并存储到向量数据库，支持多种文档格式
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+                - title
+              properties:
+                content:
+                  type: string
+                  description: 文档内容，支持纯文本、Markdown、HTML等格式
+                  example: "项目需求文档：智能日历系统需要支持冲突检测和智能建议功能。"
+                title:
+                  type: string
+                  description: 文档标题
+                  example: "智能日历系统需求文档"
+                metadata:
+                  type: object
+                  description: 文档元数据
+                  properties:
+                    source:
+                      type: string
+                      description: 文档来源
+                    category:
+                      type: string
+                      description: 文档分类
+                    tags:
+                      type: array
+                      items:
+                        type: string
+                      description: 文档标签
+      responses:
+        '200':
+          description: 嵌入成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documentId:
+                    type: string
+                    description: 文档ID
+                    example: "doc-1234567890"
+                  status:
+                    type: string
+                    description: 处理状态
+                    enum: ["SUCCESS", "PROCESSING", "FAILED"]
+                    example: "SUCCESS"
+                  vectorCount:
+                    type: integer
+                    format: int32
+                    description: 生成的向量数量
+                    example: 1
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/documents/query:
+    post:
+      summary: 向量数据库查询
+      description: 基于查询文本在向量数据库中搜索相似文档，支持语义相似度搜索
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: 查询文本
+                  example: "如何检测日程冲突？"
+                topK:
+                  type: integer
+                  format: int32
+                  minimum: 1
+                  maximum: 20
+                  default: 5
+                  description: 返回结果数量
+                similarityThreshold:
+                  type: number
+                  format: float
+                  minimum: 0.0
+                  maximum: 1.0
+                  default: 0.7
+                  description: 相似度阈值
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        documentId:
+                          type: string
+                          description: 文档ID
+                          example: "doc-1234567890"
+                        content:
+                          type: string
+                          description: 文档内容片段
+                          example: "冲突检测功能通过比较时间重叠来实现..."
+                        similarity:
+                          type: number
+                          format: float
+                          description: 相似度分数
+                          example: 0.85
+                        title:
+                          type: string
+                          description: 文档标题
+                          example: "冲突检测功能说明"
+                        metadata:
+                          type: object
+                          description: 文档元数据
+                  totalHits:
+                    type: integer
+                    format: int32
+                    description: 总匹配数量
+                    example: 3
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /ai/generateStreamAsString:
+    post:
+      summary: AI流式响应生成
+      description: 基于用户输入生成AI响应，支持流式输出和RAG集成
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+                - sessionId
+              properties:
+                message:
+                  type: string
+                  description: 用户输入消息
+                  example: "帮我检查明天下午2点到4点是否有空？"
+                sessionId:
+                  type: string
+                  description: 会话ID
+                  example: "user-1-session-1640995200000"
+                useRAG:
+                  type: boolean
+                  default: true
+                  description: 是否使用RAG检索增强
+                temperature:
+                  type: number
+                  format: float
+                  minimum: 0.0
+                  maximum: 2.0
+                  default: 0.7
+                  description: 生成温度
+                maxTokens:
+                  type: integer
+                  format: int32
+                  minimum: 1
+                  maximum: 4000
+                  default: 1000
+                  description: 最大输出token数
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "根据您的日程安排，明天下午2点到4点您有一个团队会议..."
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/conversations/user/current:
+    get:
+      summary: 获取当前用户所有对话记录
+      description: 获取当前登录用户的所有对话记录
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+  /api/conversations/user/{userId}:
+    get:
+      summary: 获取用户所有对话记录
+      description: 获取指定用户的所有对话记录
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+  /api/conversations/session/{sessionId}:
+    get:
+      summary: 获取指定会话的对话记录
+      description: 获取指定会话的所有对话记录
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+  /api/conversations/{id}:
+    delete:
+      summary: 删除对话记录
+      description: 删除指定ID的对话记录
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 删除成功
+  /api/conversations/sessions/current:
+    get:
+      summary: 获取当前用户所有会话ID
+      description: 获取当前登录用户的所有会话ID列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /api/conversations/sessions/user/{userId}:
+    get:
+      summary: 获取用户所有会话ID
+      description: 获取指定用户的所有会话ID列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /api/conversations/new:
+    post:
+      summary: 创建新对话
+      description: 为当前用户创建一个新的对话会话
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 自定义会话ID（可选），如果不提供则系统自动生成
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "user-1-session-1640995200000"
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/conversations/recent-session:
+    get:
+      summary: 获取最近的活动会话
+      description: 获取当前用户最近的活动会话ID，如果没有则创建新会话
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "user-1-session-1640995200000"
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/conversations/session/{sessionId}/exists:
+    get:
+      summary: 检查会话是否存在
+      description: 检查指定的会话ID是否存在
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 会话ID
+      responses:
+        '200':
+          description: 检查完成
+          content:
+            application/json:
+              schema:
+                type: boolean
+                example: true
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/conversations/session/{sessionId}/count:
+    get:
+      summary: 获取会话对话数量
+      description: 获取指定会话中的对话记录数量
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 会话ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int32
+                example: 15
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/conversations/sessions/summaries/current:
+    get:
+      summary: 获取当前用户会话总结
+      description: 获取当前用户所有会话的总结信息
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionSummary'
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/conversations/sessions/summaries/user/{userId}:
+    get:
+      summary: 获取指定用户会话总结
+      description: 获取指定用户所有会话的总结信息
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 用户ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionSummary'
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 无权访问其他用户数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/conflict/check:
+    post:
+      summary: 检测日程冲突
+      description: 检测指定时间段内是否存在日程冲突，支持单日和多日冲突检测
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConflictCheckRequest'
+            example:
+              eventTitle: "团队会议"
+              eventDate: "2024-01-15"
+              startTime: "14:00"
+              endTime: "15:30"
+              isAllDay: false
+              isRecurring: false
+      responses:
+        '200':
+          description: 检测完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictCheckResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/conflict/suggestions:
+    post:
+      summary: 获取智能时间建议
+      description: 基于用户偏好、现有日程和AI分析获取智能时间建议，支持多时间段推荐
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SmartSuggestionsRequest'
+            example:
+              date: "2024-01-15"
+              durationMinutes: 90
+              eventType: "MEETING"
+              preferredTimeSlots: ["09:00-12:00", "14:00-18:00"]
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmartSuggestionsResponse'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 未授权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          description: 用户名
+          example: "admin"
+        password:
+          type: string
+          description: 密码
+          example: "password123"
+
+    SignupRequest:
+      type: object
+      required:
+        - username
+        - password
+        - email
+      properties:
+        username:
+          type: string
+          description: 用户名
+          example: "newuser"
+        password:
+          type: string
+          description: 密码
+          example: "securepassword"
+        email:
+          type: string
+          format: email
+          description: 邮箱地址
+          example: "user@example.com"
+
+    JwtResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT令牌
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        type:
+          type: string
+          description: 令牌类型
+          example: "Bearer"
+        username:
+          type: string
+          description: 用户名
+          example: "admin"
+        email:
+          type: string
+          description: 邮箱地址
+          example: "admin@example.com"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: 响应消息
+          example: "操作成功"
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: 错误时间戳
+          example: "2024-01-15T10:30:00Z"
+        status:
+          type: integer
+          format: int32
+          description: HTTP状态码
+          example: 400
+        error:
+          type: string
+          description: 错误类型
+          example: "Bad Request"
+        message:
+          type: string
+          description: 错误消息
+          example: "请求参数无效"
+        path:
+          type: string
+          description: 请求路径
+          example: "/api/auth/signin"
+    BookingDetails:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 预订ID
+          example: 123456
+        title:
+          type: string
+          description: 预订标题
+          example: "团队会议"
+        startTime:
+          type: string
+          format: date-time
+          description: 开始时间
+          example: "2024-01-15T14:00:00Z"
+        endTime:
+          type: string
+          format: date-time
+          description: 结束时间
+          example: "2024-01-15T15:30:00Z"
+        location:
+          type: string
+          description: 地点
+          example: "会议室A"
+        description:
+          type: string
+          description: 描述
+          example: "每周团队例会"
+        status:
+          type: string
+          enum:
+            - CONFIRMED
+            - TENTATIVE
+            - CANCELLED
+          description: 状态
+          example: "CONFIRMED"
+        createdBy:
+          type: string
+          description: 创建者
+          example: "admin"
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2024-01-14T09:00:00Z"
+
+    CreateConversationRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          description: 会话ID（可选，不提供则自动生成）
+          example: "user-1-session-1640995200000"
+        initialMessage:
+          type: string
+          description: 初始消息
+          example: "你好，我想查询明天的日程安排"
+
+    ConversationMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 消息ID
+          example: "msg-123456"
+        sessionId:
+          type: string
+          description: 会话ID
+          example: "user-1-session-1640995200000"
+        message:
+          type: string
+          description: 消息内容
+          example: "帮我检查明天下午2点到4点是否有空？"
+        role:
+          type: string
+          description: 消息角色
+          enum: ["USER", "ASSISTANT"]
+          example: "USER"
+        timestamp:
+          type: string
+          format: date-time
+          description: 时间戳
+          example: "2024-01-15T10:30:00Z"
+        metadata:
+          type: object
+          description: 元数据
+          properties:
+            functionCall:
+              type: object
+              description: 函数调用信息
+            ragContext:
+              type: object
+              description: RAG上下文信息
+
+    ConversationSession:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          description: 会话ID
+          example: "user-1-session-1640995200000"
+        userId:
+          type: integer
+          format: int64
+          description: 用户ID
+          example: 1
+        title:
+          type: string
+          description: 会话标题
+          example: "日程查询对话"
+        messageCount:
+          type: integer
+          format: int32
+          description: 消息数量
+          example: 15
+        lastActivityTime:
+          type: string
+          format: date-time
+          description: 最后活动时间
+          example: "2024-01-15T10:30:00Z"
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+          example: "2024-01-14T09:00:00Z"
+        isActive:
+          type: boolean
+          description: 是否活跃
+          example: true
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        sessionId:
+          type: string
+        userMessage:
+          type: string
+        aiResponse:
+          type: string
+        intent:
+          type: string
+        entities:
+          type: string
+        successful:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - sessionId
+        - userMessage
+        - aiResponse
+        - successful
+        - createdAt
+    ConflictCheckRequest:
+      type: object
+      properties:
+        eventTitle:
+          type: string
+          description: 事件标题
+        proposedDate:
+          type: string
+          format: date
+          description: 提议的日期 (格式: YYYY-MM-DD)
+        startTime:
+          type: string
+          format: time
+          description: 开始时间 (格式: HH:MM)
+        endTime:
+          type: string
+          format: time
+          description: 结束时间 (格式: HH:MM)
+        location:
+          type: string
+          description: 地点
+        description:
+          type: string
+          description: 描述
+      required:
+        - proposedDate
+        - startTime
+        - endTime
+    ConflictCheckResponse:
+      type: object
+      properties:
+        hasConflict:
+          type: boolean
+          description: 是否存在冲突
+        conflictingEvents:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarEvent'
+          description: 冲突的日程事件列表
+        severity:
+          type: string
+          enum:
+            - NONE
+            - MINOR
+            - MODERATE
+            - SEVERE
+          description: 冲突严重程度
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeSuggestion'
+          description: 时间建议列表
+        message:
+          type: string
+          description: 响应消息
+    SmartSuggestionsResponse:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: 日期
+        optimalSlots:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeSuggestion'
+          description: 最佳时间段列表
+        userPreferences:
+          $ref: '#/components/schemas/UserPreference'
+          description: 用户偏好设置
+        message:
+          type: string
+          description: 响应消息
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 事件ID
+        userId:
+          type: integer
+          format: int64
+          description: 用户ID
+        title:
+          type: string
+          description: 事件标题
+        description:
+          type: string
+          description: 事件描述
+        startTime:
+          type: string
+          format: date-time
+          description: 开始时间
+        endTime:
+          type: string
+          format: date-time
+          description: 结束时间
+        timezone:
+          type: string
+          description: 时区
+        location:
+          type: string
+          description: 地点
+        eventType:
+          type: string
+          enum:
+            - MEETING
+            - APPOINTMENT
+            - TASK
+            - REMINDER
+            - PERSONAL
+            - OTHER
+          description: 事件类型
+        priority:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+          description: 优先级
+        allDay:
+          type: boolean
+          description: 是否全天事件
+        recurrenceRule:
+          type: string
+          description: 重复规则
+        recurrenceExceptions:
+          type: string
+          description: 重复例外
+        status:
+          type: string
+          enum:
+            - NOT_STARTED
+            - IN_PROGRESS
+            - COMPLETED
+            - CANCELLED
+          description: 事件状态
+        visibility:
+          type: string
+          enum:
+            - PUBLIC
+            - PRIVATE
+            - SHARED
+          description: 可见性
+        externalEventId:
+          type: string
+          description: 外部事件ID
+        externalCalendarId:
+          type: string
+          description: 外部日历ID
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+    TimeSuggestion:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: 建议日期
+        startTime:
+          type: string
+          format: time
+          description: 建议开始时间
+        endTime:
+          type: string
+          format: time
+          description: 建议结束时间
+        confidence:
+          type: number
+          format: double
+          description: 置信度
+        reason:
+          type: string
+          description: 建议理由
+    UserPreference:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+          description: 用户ID
+        workDayStart:
+          type: string
+          format: time
+          description: 工作日开始时间
+        workDayEnd:
+          type: string
+          format: time
+          description: 工作日结束时间
+        includeWeekends:
+          type: boolean
+          description: 是否包含周末
+        defaultEventDuration:
+          type: integer
+          format: int32
+          description: 默认事件时长（分钟）
+        bufferTimeBeforeEvents:
+          type: integer
+          format: int32
+          description: 事件前缓冲时间（分钟）
+        bufferTimeAfterEvents:
+          type: integer
+          format: int32
+          description: 事件后缓冲时间（分钟）
+        defaultReminderTime:
+          type: integer
+          format: int32
+          description: 默认提醒时间（分钟）
+        theme:
+          type: string
+          description: 主题
+        notificationEnabled:
+          type: boolean
+          description: 是否启用通知
+        emailNotifications:
+          type: boolean
+          description: 是否启用邮件通知
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新时间
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT认证令牌，需要在请求头中添加Authorization: Bearer {token}
+
+  responses:
+    UnauthorizedError:
+      description: 认证失败或令牌无效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadRequestError:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  parameters:
+    PageParameter:
+      name: page
+      in: query
+      description: 页码，从1开始
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 1
+    SizeParameter:
+      name: size
+      in: query
+      description: 每页大小
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 20
+    SessionIdParameter:
+      name: sessionId
+      in: path
+      description: 会话ID
+      required: true
+      schema:
+        type: string
+    UserIdParameter:
+      name: userId
+      in: path
+      description: 用户ID
+      required: true
+      schema:
+        type: integer
+        format: int64
+security:
+  - bearerAuth: []

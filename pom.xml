@@ -30,6 +30,7 @@
 		<java.version>17</java.version>
 		<spring-ai.version>1.0.0-M2</spring-ai.version>
 		<jjwt.version>0.11.5</jjwt.version>
+		<langchain4j.version>0.31.0</langchain4j.version>
 	</properties>
 
 	<dependencies>
@@ -65,6 +66,11 @@
 			<artifactId>spring-ai-alibaba-starter</artifactId>
 			<version>1.0.0-M2.1</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
@@ -77,7 +83,6 @@
 			<artifactId>mybatis-spring-boot-starter</artifactId>
 			<version>3.0.3</version>
 		</dependency>
-
 
 		<!-- JWT -->
 		<dependency>
@@ -98,8 +103,42 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>redis.clients</groupId>
+			<artifactId>jedis</artifactId>
+		</dependency>
+		
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webflux</artifactId>
+		</dependency>
 
+		<!-- RAG相关依赖 -->
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-tika-document-reader</artifactId>
+		</dependency>
 
+		<!-- LangChain4j 核心依赖 -->
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j</artifactId>
+			<version>${langchain4j.version}</version>
+		</dependency>
+
+		<!-- LangChain4j Spring Boot Starter -->
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-spring-boot-starter</artifactId>
+			<version>${langchain4j.version}</version>
+		</dependency>
+
+		<!-- LangChain4j OpenAI Adapter (for TongYi) -->
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-open-ai</artifactId>
+			<version>${langchain4j.version}</version>
+		</dependency>
 
 	</dependencies>
 

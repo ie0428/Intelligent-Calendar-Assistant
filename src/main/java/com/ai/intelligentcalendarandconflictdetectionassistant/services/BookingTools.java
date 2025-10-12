@@ -2,17 +2,17 @@ package com.ai.intelligentcalendarandconflictdetectionassistant.services;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.LocalDateTime;
 
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.SmartSuggestionsRequest;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.response.SmartSuggestionsResponse;
+import com.ai.intelligentcalendarandconflictdetectionassistant.request.SmartSuggestionsRequest;
+import com.ai.intelligentcalendarandconflictdetectionassistant.response.SmartSuggestionsResponse;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.ConflictDetectionServiceImpl;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.FlightBookingServiceImpl;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.ConflictCheckRequest;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.response.ConflictCheckResponse;
+import com.ai.intelligentcalendarandconflictdetectionassistant.request.ConflictCheckRequest;
+import com.ai.intelligentcalendarandconflictdetectionassistant.response.ConflictCheckResponse;
 import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.TimeSuggestion;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.CalendarEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -30,10 +30,10 @@ import java.util.function.Function;
 public class BookingTools {
 
 	@Autowired
-	private FlightBookingService flightBookingService;
+	private FlightBookingServiceImpl flightBookingServiceImpl;
 
 	@Autowired
-	private ConflictDetectionService conflictDetectionService;
+	private ConflictDetectionServiceImpl conflictDetectionServiceImpl;
 	
 	// 存储当前请求的用户ID
 	private static final ThreadLocal<Long> currentRequestUserId = new ThreadLocal<>();
@@ -87,7 +87,7 @@ public class BookingTools {
 				}
 				
 				log.info("调用FlightBookingService取消日程，用户ID: {}, 事件ID: {}", userId, request.eventId());
-				flightBookingService.cancelBookingByUserId(request.eventId(), userId);
+				flightBookingServiceImpl.cancelBookingByUserId(request.eventId(), userId);
 				return "日程取消成功";
 			} catch (Exception e) {
 				return "日程取消失败: " + e.getMessage();
@@ -114,7 +114,7 @@ public class BookingTools {
 				}
 				
 				log.info("调用FlightBookingService删除日程，用户ID: {}, 事件ID: {}", userId, request.eventId());
-				flightBookingService.deleteBookingByUserId(request.eventId(), userId);
+				flightBookingServiceImpl.deleteBookingByUserId(request.eventId(), userId);
 				return "日程删除成功";
 			} catch (Exception e) {
 				return "日程删除失败: " + e.getMessage();
@@ -149,13 +149,13 @@ public class BookingTools {
 				if (request.eventId() != null && !request.eventId().isEmpty()) {
 					// 查询单个事件
 					log.info("查询单个事件，事件ID: {}, 用户ID: {}", request.eventId(), userId);
-					BookingDetails details = flightBookingService.getBookingDetailsByUserId(request.eventId(), userId);
+					BookingDetails details = flightBookingServiceImpl.getBookingDetailsByUserId(request.eventId(), userId);
 					log.info("成功查询到事件详情");
 					return List.of(details);
 				} else {
 					// 查询用户所有事件
 					log.info("查询用户所有事件，用户ID: {}", userId);
-					List<BookingDetails> bookings = flightBookingService.getBookingsByUserId(userId);
+					List<BookingDetails> bookings = flightBookingServiceImpl.getBookingsByUserId(userId);
 					log.info("成功查询到 {} 个事件", bookings.size());
 					return bookings;
 				}
@@ -184,7 +184,7 @@ public class BookingTools {
 				}
 				
 				log.info("调用FlightBookingService获取日程详细信息，用户ID: {}, 事件ID: {}", userId, request.eventId());
-				BookingDetails details = flightBookingService.getBookingDetailsByUserId(request.eventId(), userId);
+				BookingDetails details = flightBookingServiceImpl.getBookingDetailsByUserId(request.eventId(), userId);
 				log.info("成功获取日程详细信息: {}", details);
 				return details;
 			}
@@ -226,7 +226,7 @@ public class BookingTools {
 					conflictRequest.setEndTime(LocalTime.parse(request.endTime()));
 					conflictRequest.setLocation("修改位置");
 					conflictRequest.setDescription("修改描述");
-					ConflictCheckResponse conflictResponse = conflictDetectionService.checkConflict(conflictRequest, userId);
+					ConflictCheckResponse conflictResponse = conflictDetectionServiceImpl.checkConflict(conflictRequest, userId);
 					
 					if (conflictResponse.isHasConflict()) {
 						log.warn("检测到冲突，冲突数量: {}, 严重程度: {}", 
@@ -252,7 +252,7 @@ public class BookingTools {
 					log.error("冲突检测失败，继续修改日程: {}", e.getMessage(), e);
 				}
 				
-				flightBookingService.changeBookingByUserId(request.eventId(), userId, request.date(), request.startTime(),
+				flightBookingServiceImpl.changeBookingByUserId(request.eventId(), userId, request.date(), request.startTime(),
 						request.endTime());
 				log.info("日程修改成功");
 				return "日程修改成功";
@@ -340,7 +340,7 @@ public class BookingTools {
 					conflictRequest.setEndTime(LocalTime.parse(request.endTime()));
 					conflictRequest.setLocation(location);
 					conflictRequest.setDescription(description);
-					ConflictCheckResponse conflictResponse = conflictDetectionService.checkConflict(conflictRequest, userId);
+					ConflictCheckResponse conflictResponse = conflictDetectionServiceImpl.checkConflict(conflictRequest, userId);
 					
 					if (conflictResponse.isHasConflict()) {
 						log.warn("检测到冲突，冲突数量: {}, 严重程度: {}", 
@@ -366,7 +366,7 @@ public class BookingTools {
 					log.error("冲突检测失败，继续创建日程: {}", e.getMessage(), e);
 				}
 
-				flightBookingService.createBooking(
+				flightBookingServiceImpl.createBooking(
 						request.date(),
 						location,
 						description,
@@ -439,7 +439,7 @@ public class BookingTools {
 				
 				System.out.println("最终使用用户ID: " + userId + " - 线程: " + Thread.currentThread().getName());
 				System.out.println("调用FlightBookingService获取用户所有日程，用户ID: " + userId + " - 线程: " + Thread.currentThread().getName());
-				List<BookingDetails> bookings = flightBookingService.getBookingsByUserId(userId);
+				List<BookingDetails> bookings = flightBookingServiceImpl.getBookingsByUserId(userId);
 				System.out.println("成功获取到 " + bookings.size() + " 个日程 - 线程: " + Thread.currentThread().getName());
 				return bookings;
 			} catch (Exception e) {
@@ -475,7 +475,7 @@ public class BookingTools {
 				
 				log.info("调用ConflictDetectionService获取智能建议");
 				SmartSuggestionsResponse response =
-						conflictDetectionService.getSmartSuggestions(smartRequest, userId);
+						conflictDetectionServiceImpl.getSmartSuggestions(smartRequest, userId);
 				
 				StringBuilder result = new StringBuilder();
 				result.append("智能日程建议:\n");

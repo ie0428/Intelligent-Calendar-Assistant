@@ -1,8 +1,7 @@
 package com.ai.intelligentcalendarandconflictdetectionassistant.advisor;
 
 import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.Conversation;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.User;
-import com.ai.intelligentcalendarandconflictdetectionassistant.services.ConversationService;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.ConversationServiceImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.UserContextHolder;
 import org.springframework.ai.chat.client.AdvisedRequest;
@@ -17,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class DatabaseChatMemoryAdvisor implements RequestResponseAdvisor {
 
-    private final ConversationService conversationService;
+    private final ConversationServiceImpl conversationServiceImpl;
     private final String memoryPromptTemplate;
     private static final String SESSION_ID_KEY = "sessionId";
     private static final String USER_ID_KEY = "userId";
@@ -28,12 +27,12 @@ public class DatabaseChatMemoryAdvisor implements RequestResponseAdvisor {
     // 用于存储每个会话的AI响应片段
     private final Map<String, StringBuilder> responseCache = new ConcurrentHashMap<>();
 
-    public DatabaseChatMemoryAdvisor(ConversationService conversationService) {
-        this(conversationService, "\nUse the conversation memory from the MEMORY section to provide accurate answers.\n\n---------------------\nMEMORY:\n{memory}\n---------------------\n\n");
+    public DatabaseChatMemoryAdvisor(ConversationServiceImpl conversationServiceImpl) {
+        this(conversationServiceImpl, "\nUse the conversation memory from the MEMORY section to provide accurate answers.\n\n---------------------\nMEMORY:\n{memory}\n---------------------\n\n");
     }
 
-    public DatabaseChatMemoryAdvisor(ConversationService conversationService, String memoryPromptTemplate) {
-        this.conversationService = conversationService;
+    public DatabaseChatMemoryAdvisor(ConversationServiceImpl conversationServiceImpl, String memoryPromptTemplate) {
+        this.conversationServiceImpl = conversationServiceImpl;
         this.memoryPromptTemplate = memoryPromptTemplate;
     }
 
@@ -79,7 +78,7 @@ public class DatabaseChatMemoryAdvisor implements RequestResponseAdvisor {
             }
 
             // 保存对话记录
-            Conversation savedConversation = conversationService.saveConversation(
+            Conversation savedConversation = conversationServiceImpl.saveConversation(
                     userId,
                     sessionId,
                     userMessage,
@@ -171,7 +170,7 @@ public class DatabaseChatMemoryAdvisor implements RequestResponseAdvisor {
                                         }
 
                                         // 保存完整的对话记录
-                                        Conversation savedConversation = conversationService.saveConversation(
+                                        Conversation savedConversation = conversationServiceImpl.saveConversation(
                                                 userId,
                                                 finalSessionId,
                                                 userMessage,
@@ -253,7 +252,7 @@ public class DatabaseChatMemoryAdvisor implements RequestResponseAdvisor {
                                         }
 
                                         // 保存完整的对话记录
-                                        Conversation savedConversation = conversationService.saveConversation(
+                                        Conversation savedConversation = conversationServiceImpl.saveConversation(
                                                 userId,
                                                 sessionId,
                                                 userMessage,
@@ -314,7 +313,7 @@ public class DatabaseChatMemoryAdvisor implements RequestResponseAdvisor {
             requestCache.put(sessionId, request);
 
             // 从数据库获取历史对话记录
-            List<Conversation> conversationHistory = conversationService.getConversationHistory(sessionId);
+            List<Conversation> conversationHistory = conversationServiceImpl.getConversationHistory(sessionId);
 
             System.out.println("从数据库获取到 " + conversationHistory.size() + " 条历史记录");
 

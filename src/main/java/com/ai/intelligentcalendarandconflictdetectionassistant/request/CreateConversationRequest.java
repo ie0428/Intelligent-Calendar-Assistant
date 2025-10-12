@@ -1,4 +1,4 @@
-package com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request;
+package com.ai.intelligentcalendarandconflictdetectionassistant.request;
 
 import lombok.Data;
 

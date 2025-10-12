@@ -2,7 +2,7 @@ package com.ai.intelligentcalendarandconflictdetectionassistant.controller;
 
 
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.BookingTools.BookingDetails;
-import com.ai.intelligentcalendarandconflictdetectionassistant.services.FlightBookingService;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.FlightBookingServiceImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.Authentication;
@@ -17,16 +17,16 @@ import java.util.List;
 @CrossOrigin
 public class BookingController {
 
-	private final FlightBookingService flightBookingService;
+	private final FlightBookingServiceImpl flightBookingServiceImpl;
 
-	public BookingController(FlightBookingService flightBookingService) {
-		this.flightBookingService = flightBookingService;
+	public BookingController(FlightBookingServiceImpl flightBookingServiceImpl) {
+		this.flightBookingServiceImpl = flightBookingServiceImpl;
 	}
 	@CrossOrigin
 	@GetMapping(value = "/booking/list")
 	public List<BookingDetails> getBookings() {
 		Long userId = getCurrentUserId();
-		return flightBookingService.getBookingsByUserId(userId);
+		return flightBookingServiceImpl.getBookingsByUserId(userId);
 	}
 
 	/**

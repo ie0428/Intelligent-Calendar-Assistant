@@ -2,7 +2,7 @@ package com.ai.intelligentcalendarandconflictdetectionassistant.controller;
 
 import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.Conversation;
 import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.SessionSummary;
-import com.ai.intelligentcalendarandconflictdetectionassistant.services.ConversationService;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.ConversationServiceImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -17,7 +17,7 @@ import java.util.List;
 public class ConversationController {
 
     @Autowired
-    private ConversationService conversationService;
+    private ConversationServiceImpl conversationServiceImpl;
 
     /**
      * 获取当前登录用户的ID
@@ -36,7 +36,7 @@ public class ConversationController {
     @GetMapping("/user/current")
     public List<Conversation> getCurrentUserConversations() {
         Long userId = getCurrentUserId();
-        return conversationService.getConversationHistoryByUser(userId);
+        return conversationServiceImpl.getConversationHistoryByUser(userId);
     }
 
     @GetMapping("/user/{userId}")
@@ -46,17 +46,17 @@ public class ConversationController {
         if (!currentUserId.equals(userId)) {
             throw new SecurityException("无权访问其他用户的对话记录");
         }
-        return conversationService.getConversationHistoryByUser(userId);
+        return conversationServiceImpl.getConversationHistoryByUser(userId);
     }
 
     @GetMapping("/session/{sessionId}")
     public List<Conversation> getConversationsBySession(@PathVariable String sessionId) {
-        return conversationService.getConversationHistory(sessionId);
+        return conversationServiceImpl.getConversationHistory(sessionId);
     }
 
     @DeleteMapping("/{id}")
     public void deleteConversation(@PathVariable Long id) {
-        conversationService.deleteConversation(id);
+        conversationServiceImpl.deleteConversation(id);
     }
     
     /**
@@ -66,7 +66,7 @@ public class ConversationController {
     @GetMapping("/sessions/current")
     public List<String> getCurrentUserSessions() {
         Long userId = getCurrentUserId();
-        return conversationService.getAllSessionIdsByUser(userId);
+        return conversationServiceImpl.getAllSessionIdsByUser(userId);
     }
 
     /**
@@ -81,7 +81,7 @@ public class ConversationController {
         if (!currentUserId.equals(userId)) {
             throw new SecurityException("无权访问其他用户的会话列表");
         }
-        return conversationService.getAllSessionIdsByUser(userId);
+        return conversationServiceImpl.getAllSessionIdsByUser(userId);
     }
     
     /**
@@ -91,7 +91,7 @@ public class ConversationController {
     @GetMapping("/sessions/summaries/current")
     public List<SessionSummary> getCurrentUserSessionSummaries() {
         Long userId = getCurrentUserId();
-        return conversationService.getSessionSummariesByUser(userId);
+        return conversationServiceImpl.getSessionSummariesByUser(userId);
     }
     
     /**
@@ -106,7 +106,7 @@ public class ConversationController {
         if (!currentUserId.equals(userId)) {
             throw new SecurityException("无权访问其他用户的会话总结");
         }
-        return conversationService.getSessionSummariesByUser(userId);
+        return conversationServiceImpl.getSessionSummariesByUser(userId);
     }
     
     /**
@@ -119,7 +119,7 @@ public class ConversationController {
         Long userId = getCurrentUserId();
         
         // 使用Service方法创建新对话
-        String newSessionId = conversationService.createNewConversation(userId, sessionId);
+        String newSessionId = conversationServiceImpl.createNewConversation(userId, sessionId);
         
         System.out.println("创建新对话成功 - 用户ID: " + userId + ", 会话ID: " + newSessionId);
         
@@ -133,11 +133,11 @@ public class ConversationController {
     @GetMapping("/recent-session")
     public String getRecentActiveSession() {
         Long userId = getCurrentUserId();
-        String recentSessionId = conversationService.getRecentActiveSessionId(userId);
+        String recentSessionId = conversationServiceImpl.getRecentActiveSessionId(userId);
         
         if (recentSessionId == null) {
             // 如果没有最近会话，创建一个新的
-            recentSessionId = conversationService.createNewConversation(userId, null);
+            recentSessionId = conversationServiceImpl.createNewConversation(userId, null);
         }
         
         return recentSessionId;
@@ -150,7 +150,7 @@ public class ConversationController {
      */
     @GetMapping("/session/{sessionId}/exists")
     public boolean checkSessionExists(@PathVariable String sessionId) {
-        return conversationService.sessionExists(sessionId);
+        return conversationServiceImpl.sessionExists(sessionId);
     }
     
     /**
@@ -160,6 +160,6 @@ public class ConversationController {
      */
     @GetMapping("/session/{sessionId}/count")
     public int getConversationCount(@PathVariable String sessionId) {
-        return conversationService.getConversationCount(sessionId);
+        return conversationServiceImpl.getConversationCount(sessionId);
     }
 }

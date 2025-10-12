@@ -6,7 +6,7 @@ import org.springframework.ai.chat.client.RequestResponseAdvisor;
 import java.util.Map;
 
 
-public class loggingAdvisor implements RequestResponseAdvisor {
+public class LoggingAdvisor implements RequestResponseAdvisor {
     //打印日志拦截器
     @Override
     public AdvisedRequest adviseRequest(AdvisedRequest request, Map<String, Object>context){

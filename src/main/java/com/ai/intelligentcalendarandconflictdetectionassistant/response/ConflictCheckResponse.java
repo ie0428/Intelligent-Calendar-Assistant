@@ -1,4 +1,4 @@
-package com.ai.intelligentcalendarandconflictdetectionassistant.pojo.response;
+package com.ai.intelligentcalendarandconflictdetectionassistant.response;
 
 import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.TimeSuggestion;
 import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.ConflictDetectionLog.Severity;

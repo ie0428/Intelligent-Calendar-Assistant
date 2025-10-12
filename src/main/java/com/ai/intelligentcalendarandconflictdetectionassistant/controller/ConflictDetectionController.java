@@ -1,10 +1,10 @@
 package com.ai.intelligentcalendarandconflictdetectionassistant.controller;
 
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.ConflictCheckRequest;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.response.ConflictCheckResponse;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.request.SmartSuggestionsRequest;
-import com.ai.intelligentcalendarandconflictdetectionassistant.pojo.response.SmartSuggestionsResponse;
-import com.ai.intelligentcalendarandconflictdetectionassistant.services.ConflictDetectionService;
+import com.ai.intelligentcalendarandconflictdetectionassistant.request.ConflictCheckRequest;
+import com.ai.intelligentcalendarandconflictdetectionassistant.response.ConflictCheckResponse;
+import com.ai.intelligentcalendarandconflictdetectionassistant.request.SmartSuggestionsRequest;
+import com.ai.intelligentcalendarandconflictdetectionassistant.response.SmartSuggestionsResponse;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.ConflictDetectionServiceImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +23,7 @@ import java.time.LocalDate;
 public class ConflictDetectionController {
 
     @Autowired
-    private ConflictDetectionService conflictDetectionService;
+    private ConflictDetectionServiceImpl conflictDetectionServiceImpl;
 
     /**
      * 检测日程冲突
@@ -35,7 +35,7 @@ public class ConflictDetectionController {
             log.info("用户 {} 请求检测冲突: {} {}-{}", 
                     userId, request.getProposedDate(), request.getStartTime(), request.getEndTime());
             
-            ConflictCheckResponse response = conflictDetectionService.checkConflict(request, userId);
+            ConflictCheckResponse response = conflictDetectionServiceImpl.checkConflict(request, userId);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("检测冲突失败", e);
@@ -70,7 +70,7 @@ public class ConflictDetectionController {
             request.setEventType(eventType);
             request.setLocation(location);
             
-            SmartSuggestionsResponse response = conflictDetectionService.getSmartSuggestions(request, userId);
+            SmartSuggestionsResponse response = conflictDetectionServiceImpl.getSmartSuggestions(request, userId);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("获取智能建议失败", e);

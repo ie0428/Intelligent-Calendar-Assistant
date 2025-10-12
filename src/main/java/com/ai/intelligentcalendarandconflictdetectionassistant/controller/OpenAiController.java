@@ -1,8 +1,9 @@
 package com.ai.intelligentcalendarandconflictdetectionassistant.controller;
 
 import com.ai.intelligentcalendarandconflictdetectionassistant.advisor.DatabaseChatMemoryAdvisor;
-import com.ai.intelligentcalendarandconflictdetectionassistant.advisor.loggingAdvisor;
-import com.ai.intelligentcalendarandconflictdetectionassistant.services.ConversationService;
+import com.ai.intelligentcalendarandconflictdetectionassistant.advisor.LoggingAdvisor;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.ConversationServiceImpl;
+import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.RagServiceImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.impls.UserDetailsImpl;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.UserContextHolder;
 import com.ai.intelligentcalendarandconflictdetectionassistant.services.BookingTools;
@@ -10,6 +11,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,8 +21,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 
 /**
@@ -31,11 +36,15 @@ import java.time.format.DateTimeFormatter;
 @CrossOrigin
 public class OpenAiController {
     private final ChatClient chatClient;
+    private final RagServiceImpl ragService;
+    private final VectorStore vectorStore;
 
     // 配置ChatClient
     public OpenAiController(ChatClient.Builder chatClientBuilder,
                             ChatMemory chatMemory,
-                            ConversationService conversationService) {
+                            ConversationServiceImpl conversationServiceImpl,
+                            RagServiceImpl ragService,
+                            VectorStore vectorStore) {
         // 获取当前日期并格式化
         String currentDate = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         
@@ -59,17 +68,21 @@ public class OpenAiController {
                         请讲中文。
                         今天的日期是 %s.
                     """.formatted(currentDate))
-                .defaultAdvisors(new loggingAdvisor())
-                .defaultAdvisors(new DatabaseChatMemoryAdvisor(conversationService))
+                .defaultAdvisors(new LoggingAdvisor())
+                .defaultAdvisors(new DatabaseChatMemoryAdvisor(conversationServiceImpl))
                 .defaultFunctions("cancelBooking","getBookingDetails","createBooking","changeBooking","findCalendarEvent","getAllBookings","getSmartScheduleSuggestions","deleteBooking")
                 .build();
+        
+        this.ragService = ragService;
+        this.vectorStore = vectorStore;
     }
     @CrossOrigin
     @GetMapping(value = "/ai/generateStreamAsString", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> generateStreamAsString(
             @RequestParam(value = "message", defaultValue = "讲个笑话") String message,
             @RequestParam(value = "sessionId", required = false) String sessionId,
-            @RequestParam(value = "userId", required = false) Long userId) {
+            @RequestParam(value = "userId", required = false) Long userId,
+            @RequestParam(value = "useRag", defaultValue = "false") boolean useRag) {
 
         // 优先使用URL参数中的userId，如果没有则尝试从认证中获取
         final Long currentUserId;
@@ -117,8 +130,27 @@ public class OpenAiController {
                 "重要：在调用getAllBookings函数时，必须使用当前用户的ID（" + finalCurrentUserId + "）。" +
                 "当前日期是: " + currentDate;
         
+        // 如果启用RAG，从向量数据库中检索相关文档
+        String ragContext = "";
+        if (useRag) {
+            List<Document> relevantDocuments = ragService.query(enhancedMessage, 0.7, 3);
+            if (!relevantDocuments.isEmpty()) {
+                StringBuilder contextBuilder = new StringBuilder();
+                contextBuilder.append("\n\n以下是来自知识库的相关信息，请参考这些信息来回答用户的问题：\n");
+                for (int i = 0; i < relevantDocuments.size(); i++) {
+                    Document doc = relevantDocuments.get(i);
+                    contextBuilder.append("【知识库信息" + (i + 1) + "】: ").append(doc.getContent()).append("\n");
+                }
+                ragContext = contextBuilder.toString();
+                System.out.println("RAG检索到 " + relevantDocuments.size() + " 个相关文档");
+            }
+        }
+        
+        // 组合最终的用户消息
+        String finalMessage = enhancedMessage + ragContext;
+        
         Flux<String> content = chatClient.prompt()
-                .user(enhancedMessage)
+                .user(finalMessage)
                 .system(systemPrompt)
                 .advisors(request -> {
                     request.param("sessionId", sessionId);
